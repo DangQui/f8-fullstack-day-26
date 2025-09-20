@@ -8,6 +8,13 @@ const player = {
   _nextBtn: document.querySelector(".btn-next"),
   _prevBtn: document.querySelector(".btn-prev"),
   _progressSlider: document.querySelector("#progress"),
+  _repeatBtn: document.querySelector(".btn-repeat"),
+  _randomBtn: document.querySelector(".btn-random"),
+
+  _isUserSeekingProgress: false,
+  _isRepeatMode: localStorage.getItem("isRepeat") === "true",
+  _isRandomMode: localStorage.getItem("isRandom") === "true",
+  _playedSongs: JSON.parse(localStorage.getItem("playedSongs")) || [],
 
   _songList: [
     {
@@ -33,7 +40,7 @@ const player = {
   _NEXT: 1,
   _PREV: -1,
   _MIN_TIME_TO_RESTART: 2,
-  _currentSongIndex: 0,
+  _currentSongIndex: parseInt(localStorage.getItem("currentSongIndex")) || 0,
 
   getCurrentSong() {
     return this._songList[this._currentSongIndex];
@@ -46,13 +53,19 @@ const player = {
   },
 
   changeSong(step) {
-    this._currentSongIndex =
-      (this._currentSongIndex + step + this._songList.length) %
-      this._songList.length;
+    if (this._isRandomMode) {
+      this.handleRandomSong();
+    } else {
+      this._currentSongIndex =
+        (this._currentSongIndex + step + this._songList.length) %
+        this._songList.length;
 
-    this.loadCurrentSong(); // Update title and src
-    this.renderPlayList(); // Update Highlight
-    this._audioElement.play(); // Luôn phát khi đổi bài
+      this.loadCurrentSong(); // Update title and src
+      this.renderPlayList(); // Update Highlight
+      this._audioElement.play(); // Luôn phát khi đổi bài
+
+      localStorage.setItem("currentSongIndex", this._currentSongIndex);
+    }
   },
 
   // === CÁC PHƯƠNG THỨC XỬ LÝ SỰ KIỆN ===
@@ -94,15 +107,115 @@ const player = {
   handleTimeUpdate() {
     const { currentTime, duration } = this._audioElement;
 
-    // Chỉ cập nhật khi có duration và user khong kéo thanh progress
-    if (!duration) return;
+    // Chỉ cập nhật khi có duration và user không kéo thanh progress
+    if (!duration || this._isUserSeekingProgress) return;
     this._progressSlider.value = (currentTime / duration) * 100;
+  },
+
+  handleMouseDown() {
+    this._isUserSeekingProgress = true;
+  },
+
+  handleMouseUp(e) {
+    this._isUserSeekingProgress = false;
+
+    const newProgressPercent = e.target.value;
+    const newTimePosition =
+      (newProgressPercent * this._audioElement.duration) / 100;
+    this._audioElement.currentTime = newTimePosition;
+  },
+
+  handleAudioEnded() {
+    if (this._isRepeatMode) {
+      this._audioElement.play();
+    } else if (this._isRandomMode) {
+      this.handleRandomSong();
+    } else {
+      this.changeSong(this._NEXT);
+    }
+  },
+
+  handleRepeatClick() {
+    this._isRepeatMode = !this._isRepeatMode;
+    this._repeatBtn.classList.toggle("active", this._isRepeatMode);
+    localStorage.setItem("isRepeat", this._isRepeatMode);
+  },
+
+  handleRandomClick() {
+    this._isRandomMode = !this._isRandomMode;
+    this._randomBtn.classList.toggle("active", this._isRandomMode);
+    localStorage.setItem("isRandom", this._isRandomMode);
+    if (!this._isRandomMode) {
+      // Reset lại playedSongs
+      this._playedSongs = [];
+      localStorage.setItem("playedSongs", JSON.stringify(this._playedSongs));
+    }
+  },
+
+  handleRandomSong() {
+    // Thêm bài hát vừa nghe vào playedSongs (nếu chưa có)
+    if (!this._playedSongs.includes(this._currentSongIndex)) {
+      this._playedSongs.push(this._currentSongIndex);
+      localStorage.setItem("playedSongs", JSON.stringify(this._playedSongs));
+    }
+
+    // Nếu đã nghe hết _songList, reset playedSongs
+    if (this._playedSongs.length >= this._songList.length) {
+      this._playedSongs = []; // Reset về mảng rỗng
+      localStorage.setItem("playedSongs", JSON.stringify(this._playedSongs));
+    }
+
+    // Lấy danh sách index song chưa nghe
+    const availableIndexes = [];
+    for (let i = 0; i < this._songList.length; i++) {
+      if (!this._playedSongs.includes(i)) {
+        availableIndexes.push(i);
+      }
+    }
+
+    // Random từ Available
+    const randomIndex = Math.floor(Math.random() * availableIndexes.length);
+    this._currentSongIndex = availableIndexes[randomIndex];
+
+    this.loadCurrentSong();
+    this.renderPlayList();
+    this._audioElement.play();
+
+    localStorage.setItem("currentSongIndex", this._currentSongIndex);
+  },
+
+  handlePlaylistClick(e) {
+    const songElement = e.target.closest(".song");
+    if (songElement) {
+      const index = Array.from(this._playListElement.children).indexOf(
+        songElement
+      );
+      if (index >= 0 && index < this._songList.length) {
+        this._currentSongIndex = index;
+        if (
+          this._isRandomMode &&
+          !this._playedSongs.includes(this._currentSongIndex)
+        ) {
+          this._playedSongs.push(this._currentSongIndex);
+          if (this._playedSongs.length >= this._songList.length) {
+            this._playedSongs = [];
+          }
+          localStorage.setItem(
+            "playedSongs",
+            JSON.stringify(this._playedSongs)
+          );
+        }
+        this.loadCurrentSong();
+        this.renderPlayList();
+        this._audioElement.play();
+
+        localStorage.setItem("currentSongIndex", this._currentSongIndex);
+      }
+    }
   },
 
   // === ĐĂNG KÝ CÁC SỰ KIỆN ===
   setUpEventListeners() {
-    this.loadCurrentSong();
-
     this._playPauseBtn.addEventListener("click", () => {
       this.handlePlayPauseClick();
     });
@@ -122,7 +235,46 @@ const player = {
       this.handleTimeUpdate()
     );
 
+    this._progressSlider.addEventListener("mousedown", () => {
+      this.handleMouseDown();
+    });
+
+    this._progressSlider.addEventListener("mouseup", (e) => {
+      this.handleMouseUp(e);
+    });
+
+    this._audioElement.addEventListener("ended", () => {
+      this.handleAudioEnded();
+    });
+
+    this._repeatBtn.addEventListener("click", () => {
+      this.handleRepeatClick();
+    });
+
+    this._randomBtn.addEventListener("click", () => {
+      this.handleRandomClick();
+    });
+
+    this._playListElement.addEventListener("click", (e) => {
+      this.handlePlaylistClick(e);
+    });
+  },
+
+  // Khởi tạo music player
+  initialize() {
+    if (
+      this._playedSongs.some(
+        (index) => index < 0 || index >= this._songList.length
+      )
+    ) {
+      this._playedSongs = [];
+      localStorage.setItem("playedSongs", JSON.stringify(this._playedSongs));
+    }
+    this.loadCurrentSong();
+    this.setUpEventListeners();
     this.renderPlayList();
+    this._repeatBtn.classList.toggle("active", this._isRepeatMode);
+    this._randomBtn.classList.toggle("active", this._isRandomMode);
   },
 
   renderPlayList() {
@@ -150,4 +302,4 @@ const player = {
   },
 };
 
-player.setUpEventListeners();
+player.initialize();

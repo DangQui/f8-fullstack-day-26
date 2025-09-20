@@ -107,6 +107,10 @@ header h2 {
   color: var(--primary-color);
 }
 
+.control .btn:hover {
+  cursor: pointer;
+}
+
 .control .btn-toggle-play {
   width: 56px;
   height: 56px;
@@ -139,6 +143,10 @@ header h2 {
   cursor: pointer;
 }
 
+.progress::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
 /* PLAYLIST */
 .playlist {
   margin-top: 408px;
@@ -161,6 +169,17 @@ header h2 {
 
 .song:active {
   opacity: 0.8;
+}
+
+.song:hover {
+  background: var(--primary-color);
+  cursor: pointer;
+}
+
+.song:hover .title,
+.song:hover .author,
+.song:hover .option {
+  color: #fff;
 }
 
 .song.active .option,
