@@ -8,6 +8,8 @@ const player = {
   _nextBtn: document.querySelector(".btn-next"),
   _prevBtn: document.querySelector(".btn-prev"),
   _progressSlider: document.querySelector("#progress"),
+  _currentTimeElement: document.querySelector(".current-time"),
+  _durationElement: document.querySelector(".duration"),
   _repeatBtn: document.querySelector(".btn-repeat"),
   _randomBtn: document.querySelector(".btn-random"),
 
@@ -50,6 +52,7 @@ const player = {
     const currentSong = this.getCurrentSong();
     this._songTitleElement.textContent = currentSong.name;
     this._audioElement.src = currentSong.path;
+    this._durationElement.textContent = "0:00";
   },
 
   changeSong(step) {
@@ -66,6 +69,12 @@ const player = {
 
       localStorage.setItem("currentSongIndex", this._currentSongIndex);
     }
+  },
+
+  formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
   },
 
   // === CÁC PHƯƠNG THỨC XỬ LÝ SỰ KIỆN ===
@@ -109,7 +118,36 @@ const player = {
 
     // Chỉ cập nhật khi có duration và user không kéo thanh progress
     if (!duration || this._isUserSeekingProgress) return;
-    this._progressSlider.value = (currentTime / duration) * 100;
+
+    // Cập nhật giá trị progress
+    const progressPercent = (currentTime / duration) * 100;
+    this._progressSlider.value = progressPercent;
+
+    // Tính phần trăm progress và cập nhật biến CSS -progress-value (cho thanh progress)
+    this._progressSlider.style.setProperty(
+      "--progress-value",
+      `${progressPercent}%`
+    );
+
+    // Cập nhật thời gian
+    this._currentTimeElement.textContent = this.formatTime(currentTime);
+    this._durationElement.textContent = this.formatTime(duration);
+  },
+
+  handleProgressInput(e) {
+    const duration = this._audioElement.duration;
+    if (!duration) return;
+
+    const progressPercent = e.target.value;
+    const newTimePosition = (progressPercent * duration) / 100;
+
+    // Cập nhật thời gian hiện tại
+    this._currentTimeElement.textContent = this.formatTime(newTimePosition);
+    // Cập tiến trình thanh progress
+    this._progressSlider.style.setProperty(
+      "--progress-value",
+      `${progressPercent}%`
+    );
   },
 
   handleMouseDown() {
@@ -235,8 +273,12 @@ const player = {
       this.handleTimeUpdate()
     );
 
-    this._progressSlider.addEventListener("mousedown", () => {
+    this._progressSlider.addEventListener("mousedown", (e) => {
       this.handleMouseDown();
+    });
+
+    this._progressSlider.addEventListener("input", (e) => {
+      this.handleProgressInput(e);
     });
 
     this._progressSlider.addEventListener("mouseup", (e) => {
@@ -257,6 +299,13 @@ const player = {
 
     this._playListElement.addEventListener("click", (e) => {
       this.handlePlaylistClick(e);
+    });
+
+    // Cập nhật duration khi metadata của audio được tải
+    this._audioElement.addEventListener("loadedmetadata", () => {
+      this._durationElement.textContent = this.formatTime(
+        this._audioElement.duration
+      );
     });
   },
 

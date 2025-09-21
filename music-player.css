@@ -123,6 +123,14 @@ header h2 {
   background-color: var(--primary-color);
 }
 
+/* PROGRESS */
+.progress-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
 .progress {
   width: 100%;
   -webkit-appearance: none;
@@ -134,6 +142,14 @@ header h2 {
   transition: opacity 0.2s;
 }
 
+.progress-container .current-time,
+.progress-container .duration {
+  width: 46px;
+  font-family: inherit;
+  color: var(--text-color);
+  text-align: center;
+}
+
 .progress::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -143,8 +159,37 @@ header h2 {
   cursor: pointer;
 }
 
-.progress::-webkit-slider-thumb:active {
-  transform: scale(1.2);
+.progress::-webkit-slider-thumb:active,
+.progress::-webkit-slider-thumb:hover {
+  transform: scale(1.4);
+}
+
+.progress::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--primary-color) 0%,
+    var(--primary-color) var(--progress-value),
+    #d3d3d3 var(--progress-value),
+    #d3d3d3 100%
+  );
+}
+
+.progress::-moz-range-track {
+  height: 6px;
+  background: #d3d3d3;
+}
+
+.progress::-moz-range-progress {
+  background-color: var(--primary-color);
+  height: 6px;
+}
+
+.progress::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background-color: var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 /* PLAYLIST */
